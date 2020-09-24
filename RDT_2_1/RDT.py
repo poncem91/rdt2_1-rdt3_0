@@ -51,6 +51,14 @@ class Packet:
         # and check if the same
         return checksum_S != computed_checksum_S
 
+    @staticmethod
+    def isACK(rcvpkt):
+        return rcvpkt.msg_S == "1"
+
+    @staticmethod
+    def isNAK(rcvpkt):
+        return rcvpkt.msg_S == "0"
+
 
 class RDT:
     ## latest sequence number used in a packet
@@ -66,8 +74,26 @@ class RDT:
 
     def rdt_2_1_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
-        self.seq_num += 1
-        self.network.udt_send(p.get_byte_S())
+        curr_seq_num = self.seq_num
+
+        while self.seq_num == curr_seq_num:
+            self.network.udt_send(p.get_byte_S())
+            response = self.network.udt_receive()
+            while not response:
+                response = self.network.udt_receive()
+            length = int(self.response[:Packet.length_S_length])
+            is_corrupt = Packet.corrupt(response[0:length])
+            if is_corrupt:
+                print("ACK/NAK corrupt... Resending original packet.")
+                continue
+            packet = Packet.from_byte_S(response[0:length])
+            if Packet.isNAK(packet):
+                print("NAK received... Resending original packet.")
+                continue
+            elif Packet.isACK(packet):
+                print("ACK received...")
+                self.seq_num = (self.seq_num + 1) % 2
+
 
     def rdt_2_1_receive(self):
         ret_S = None
