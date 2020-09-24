@@ -81,7 +81,8 @@ class RDT:
             response = self.network.udt_receive()
             while not response:
                 response = self.network.udt_receive()
-            length = int(self.response[:Packet.length_S_length])
+            length = int(response[:Packet.length_S_length])
+            self.byte_buffer = response[length:]
             is_corrupt = Packet.corrupt(response[0:length])
             if is_corrupt:
                 print("ACK/NAK corrupt... Resending original packet.")
@@ -89,6 +90,7 @@ class RDT:
             packet = Packet.from_byte_S(response[0:length])
             if Packet.isNAK(packet):
                 print("NAK received... Resending original packet.")
+                self.byte_buffer = ''
                 continue
             elif Packet.isACK(packet):
                 print("ACK received...")
