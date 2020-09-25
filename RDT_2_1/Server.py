@@ -31,14 +31,15 @@ if __name__ == '__main__':
     parser.add_argument('port', help='Port.', type=int)
     args = parser.parse_args()
 
-    timeout = 5  # close connection if no new data within 5 seconds
+    timeout = 20  # close connection if no new data within 5 seconds
     time_of_last_data = time.time()
 
     rdt = RDT.RDT('server', None, args.port)
-    while (True):
+    while True:
         # try to receiver message before timeout
         msg_S = rdt.rdt_2_1_receive()
         if msg_S is None:
+            #time.sleep(3)
             if time_of_last_data + timeout < time.time():
                 break
             else:
