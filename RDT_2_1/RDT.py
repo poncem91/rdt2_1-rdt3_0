@@ -71,11 +71,9 @@ class RDT:
         self.network.disconnect()
 
     def rdt_2_1_send(self, msg_S):
-        # print("rdt send")
         p = Packet(self.seq_num, msg_S)
-        curr_seq_num = self.seq_num
 
-        while curr_seq_num == self.seq_num:
+        while True:
             self.network.udt_send(p.get_byte_S())
             ack_or_nak = self.network.udt_receive()
 
@@ -112,12 +110,9 @@ class RDT:
                     self.byte_buffer = ""
 
     def rdt_2_1_receive(self):
-
-        # print("rdt receive")
         ret_S = None
         byte_S = self.network.udt_receive()
         self.byte_buffer += byte_S
-        curr_seq_num = self.seq_num
         # keep extracting packets - if reordered, could get more than one
         while True:
             # check if we have received enough bytes
