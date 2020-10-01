@@ -16,7 +16,7 @@ if __name__ == '__main__':
         'Grove giveth and Gates taketh away. -- Bob Metcalfe on the trend of hardware speedups not being able to keep up with software demands',
         'Wise men make proverbs, but fools repeat them. -- Samuel Palmer']
 
-    timeout = 20  # send the next message if no response
+    timeout = 5  # send the next message if no response
     time_of_last_data = time.time()
 
     rdt = RDT.RDT('client', args.server, args.port)
@@ -28,7 +28,6 @@ if __name__ == '__main__':
         msg_S = None
         while msg_S is None:
             msg_S = rdt.rdt_2_1_receive()
-            #time.sleep(3)
             if msg_S is None:
                 if time_of_last_data + timeout < time.time():
                     break
@@ -39,5 +38,4 @@ if __name__ == '__main__':
         # print the result
         if msg_S:
             print('to: ' + msg_S + '\n')
-
     rdt.disconnect()

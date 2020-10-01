@@ -1,6 +1,8 @@
+import time
+
 import Network
 import argparse
-from time import sleep
+import time
 import hashlib
 
 
@@ -80,34 +82,25 @@ class RDT:
             # wait for an ACK/NAK response
             while not ack_or_nak:
                 ack_or_nak = self.network.udt_receive()
+            self.byte_buffer = ack_or_nak
 
             # extract length of packet
             length = int(ack_or_nak[:Packet.length_S_length])
-            self.byte_buffer = ack_or_nak[length:]
 
             # check if ACK/NAK is corrupt
             ack_or_nak_bytes = ack_or_nak[0:length]
             corrupt = Packet.corrupt(ack_or_nak_bytes)
 
-            if corrupt:
-                #print("ACK/NAK was corrupt...")
-                self.byte_buffer = ""
-
-            elif not corrupt:
+            if not corrupt:
                 response = Packet.from_byte_S(ack_or_nak_bytes)
                 if self.seq_num != response.seq_num:
-                    #print("Unexpected ACK/NAK")
                     sndpkt = Packet(response.seq_num, "1")
                     self.network.udt_send(sndpkt.get_byte_S())
                     continue
 
-                if response.isACK():
-                    #print("ACK received... increasing sequence number")
+                elif response.isACK():
                     self.seq_num = (self.seq_num + 1) % 2
                     break
-                elif response.isNAK():
-                    #print("NAK received... resending packet")
-                    self.byte_buffer = ""
 
     def rdt_2_1_receive(self):
         ret_S = None
@@ -127,7 +120,6 @@ class RDT:
             corrupt = Packet.corrupt(self.byte_buffer)
 
             if corrupt:
-                #print("Packet was corrupt... Sending NAK")
                 sndpkt = Packet(self.seq_num, "0")
                 self.network.udt_send(sndpkt.get_byte_S())
 
@@ -135,14 +127,12 @@ class RDT:
                 p = Packet.from_byte_S(self.byte_buffer[0:length])
 
                 if self.seq_num == p.seq_num:
-                    #print("New packet received... Sending ACK then increasing sequence number")
                     sndpkt = Packet(p.seq_num, "1")
                     self.network.udt_send(sndpkt.get_byte_S())
                     self.seq_num = (self.seq_num + 1) % 2
                     ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
 
                 else:
-                    #print("Packet already received... Resending ACK")
                     sndpkt = Packet(p.seq_num, "1")
                     self.network.udt_send(sndpkt.get_byte_S())
 
