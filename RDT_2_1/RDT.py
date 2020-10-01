@@ -65,21 +65,30 @@ class RDT:
     byte_buffer = ''
 
     def __init__(self, role_S, server_S, port):
-        self.network = Network.NetworkLayer(role_S, server_S, port)
+        # use the passed in port and port+1 to set up unidirectional links between
+        # RDT send and receive functions
+        # cross the ports on the client and server to match net_snd to net_rcv
+        if role_S == 'server':
+            self.net_snd = Network.NetworkLayer(role_S, server_S, port)
+            self.net_rcv = Network.NetworkLayer(role_S, server_S, port + 1)
+        else:
+            self.net_rcv = Network.NetworkLayer(role_S, server_S, port)
+            self.net_snd = Network.NetworkLayer(role_S, server_S, port + 1)
 
     def disconnect(self):
-        self.network.disconnect()
+        self.net_snd.disconnect()
+        self.net_rcv.disconnect()
 
     def rdt_2_1_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
 
         while True:
-            self.network.udt_send(p.get_byte_S())
-            ack_or_nak = self.network.udt_receive()
+            self.net_snd.udt_send(p.get_byte_S())
+            ack_or_nak = self.net_snd.udt_receive()
 
             # wait for an ACK/NAK response
             while not ack_or_nak:
-                ack_or_nak = self.network.udt_receive()
+                ack_or_nak = self.net_snd.udt_receive()
             self.byte_buffer = ack_or_nak
 
             # extract length of packet
@@ -93,7 +102,7 @@ class RDT:
                 response = Packet.from_byte_S(ack_or_nak_bytes)
                 if self.seq_num != response.seq_num:
                     sndpkt = Packet(response.seq_num, "1")
-                    self.network.udt_send(sndpkt.get_byte_S())
+                    self.net_snd.udt_send(sndpkt.get_byte_S())
                     continue
 
                 elif response.isACK():
@@ -102,7 +111,7 @@ class RDT:
 
     def rdt_2_1_receive(self):
         ret_S = None
-        byte_S = self.network.udt_receive()
+        byte_S = self.net_rcv.udt_receive()
         self.byte_buffer += byte_S
         # keep extracting packets - if reordered, could get more than one
         while True:
@@ -119,20 +128,20 @@ class RDT:
 
             if corrupt:
                 sndpkt = Packet(self.seq_num, "0")
-                self.network.udt_send(sndpkt.get_byte_S())
+                self.net_rcv.udt_send(sndpkt.get_byte_S())
 
             elif not corrupt:
                 p = Packet.from_byte_S(self.byte_buffer[0:length])
 
                 if self.seq_num == p.seq_num:
                     sndpkt = Packet(p.seq_num, "1")
-                    self.network.udt_send(sndpkt.get_byte_S())
+                    self.net_rcv.udt_send(sndpkt.get_byte_S())
                     self.seq_num = (self.seq_num + 1) % 2
                     ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
 
                 else:
                     sndpkt = Packet(p.seq_num, "1")
-                    self.network.udt_send(sndpkt.get_byte_S())
+                    self.net_rcv.udt_send(sndpkt.get_byte_S())
 
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]

@@ -59,10 +59,19 @@ class RDT:
     byte_buffer = ''
 
     def __init__(self, role_S, server_S, port):
-        self.network = Network.NetworkLayer(role_S, server_S, port)
+        # use the passed in port and port+1 to set up unidirectional links between
+        # RDT send and receive functions
+        # cross the ports on the client and server to match net_snd to net_rcv
+        if role_S == 'server':
+            self.net_snd = Network.NetworkLayer(role_S, server_S, port)
+            self.net_rcv = Network.NetworkLayer(role_S, server_S, port + 1)
+        else:
+            self.net_rcv = Network.NetworkLayer(role_S, server_S, port)
+            self.net_snd = Network.NetworkLayer(role_S, server_S, port + 1)
 
     def disconnect(self):
-        self.network.disconnect()
+        self.net_snd.disconnect()
+        self.net_rcv.disconnect()
 
     def rdt_3_0_send(self, msg_S):
         pass
