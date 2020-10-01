@@ -1,16 +1,14 @@
-import time
-
 import Network
 import argparse
-import time
 import hashlib
+from time import sleep
 
 
 class Packet:
-    ## the number of bytes used to store packet length
+    # the number of bytes used to store packet length
     seq_num_S_length = 10
     length_S_length = 10
-    ## length of md5 checksum in hex
+    # length of md5 checksum in hex
     checksum_length = 32
 
     def __init__(self, seq_num, msg_S):
@@ -61,9 +59,9 @@ class Packet:
 
 
 class RDT:
-    ## latest sequence number used in a packet
+    # latest sequence number used in a packet
     seq_num = 1
-    ## buffer of bytes read from network
+    # buffer of bytes read from network
     byte_buffer = ''
 
     def __init__(self, role_S, server_S, port):
@@ -136,11 +134,11 @@ class RDT:
                     sndpkt = Packet(p.seq_num, "1")
                     self.network.udt_send(sndpkt.get_byte_S())
 
-
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
 
     # if this was the last packet, will return on the next iteration
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RDT implementation.')
@@ -151,14 +149,13 @@ if __name__ == '__main__':
 
     rdt = RDT(args.role, args.server, args.port)
     if args.role == 'client':
-        rdt.rdt_1_0_send('MSG_FROM_CLIENT')
+        rdt.rdt_2_1_send('MSG_FROM_CLIENT')
         sleep(2)
-        print(rdt.rdt_1_0_receive())
+        print(rdt.rdt_2_1_receive())
         rdt.disconnect()
-
 
     else:
         sleep(1)
-        print(rdt.rdt_1_0_receive())
-        rdt.rdt_1_0_send('MSG_FROM_SERVER')
+        print(rdt.rdt_2_1_receive())
+        rdt.rdt_2_1_send('MSG_FROM_SERVER')
         rdt.disconnect()

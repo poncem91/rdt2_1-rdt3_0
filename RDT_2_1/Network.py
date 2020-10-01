@@ -6,7 +6,7 @@ import random
 import RDT
 
 
-## Provides an abstraction for the network layer
+# Provides an abstraction for the network layer
 class NetworkLayer:
     # configuration parameters
     prob_pkt_loss = 0
@@ -82,7 +82,7 @@ class NetworkLayer:
                 raise RuntimeError("socket connection broken")
             totalsent = totalsent + sent
 
-    ## Receive data from the network and save in internal buffer
+    # Receive data from the network and save in internal buffer
     def collect(self):
         #         print (threading.currentThread().getName() + ': Starting')
         while (True):
@@ -99,7 +99,7 @@ class NetworkLayer:
                 #                 print (threading.currentThread().getName() + ': Ending')
                 return
 
-    ## Deliver collected data to client
+    # Deliver collected data to client
     def udt_receive(self):
         with self.lock:
             ret_S = self.buffer_S
