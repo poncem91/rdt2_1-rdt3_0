@@ -16,7 +16,7 @@ if __name__ == '__main__':
         'Grove giveth and Gates taketh away. -- Bob Metcalfe on the trend of hardware speedups not being able to keep up with software demands',
         'Wise men make proverbs, but fools repeat them. -- Samuel Palmer']
 
-    timeout = 5  # send the next message if no response
+    timeout = 10  # send the next message if no response
     time_of_last_data = time.time()
 
     rdt = RDT.RDT('client', args.server, args.port)
