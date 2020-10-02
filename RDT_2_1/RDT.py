@@ -80,16 +80,21 @@ class RDT:
         self.net_rcv.disconnect()
 
     def rdt_2_1_send(self, msg_S):
+        sleep(1)
+        print("\n\n")
         p = Packet(self.seq_num, msg_S)
 
         while True:
             self.net_snd.udt_send(p.get_byte_S())
+            print("SEND: sending packet with seq num", self.seq_num)
             ack_or_nak = self.net_snd.udt_receive()
 
             # wait for an ACK/NAK response
             while not ack_or_nak:
+                sleep(1)
+                print("SEND: waiting for ACK/NAK")
                 ack_or_nak = self.net_snd.udt_receive()
-            self.byte_buffer = ack_or_nak
+            print("SEND: received ACK/NAK")
 
             # extract length of packet
             length = int(ack_or_nak[:Packet.length_S_length])
@@ -98,18 +103,27 @@ class RDT:
             ack_or_nak_bytes = ack_or_nak[0:length]
             corrupt = Packet.corrupt(ack_or_nak_bytes)
 
+            if corrupt:
+                print("SEND: ACK/NAK corrupt")
+
             if not corrupt:
                 response = Packet.from_byte_S(ack_or_nak_bytes)
+                print("SEND: ACK/NAK with seq num", response.seq_num)
                 if self.seq_num != response.seq_num:
                     sndpkt = Packet(response.seq_num, "1")
                     self.net_snd.udt_send(sndpkt.get_byte_S())
+                    print("SEND: seq num mismatch - resending ACK for seq num", response.seq_num)
                     continue
 
                 elif response.isACK():
                     self.seq_num = (self.seq_num + 1) % 2
+                    print("SEND: was correct ACK, moving seq num to", self.seq_num)
                     break
 
     def rdt_2_1_receive(self):
+        sleep(1)
+        print("\n\n")
+
         ret_S = None
         byte_S = self.net_rcv.udt_receive()
         self.byte_buffer += byte_S
@@ -129,6 +143,9 @@ class RDT:
             if corrupt:
                 sndpkt = Packet(self.seq_num, "0")
                 self.net_rcv.udt_send(sndpkt.get_byte_S())
+                self.byte_buffer = self.byte_buffer[length:]
+                print("RECEIVE: packet corrupt, sending NAK")
+                return None
 
             elif not corrupt:
                 p = Packet.from_byte_S(self.byte_buffer[0:length])
@@ -138,10 +155,14 @@ class RDT:
                     self.net_rcv.udt_send(sndpkt.get_byte_S())
                     self.seq_num = (self.seq_num + 1) % 2
                     ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
+                    print("RECEIVE: correct packet, sending ACK, moving seq num to", self.seq_num)
 
                 else:
                     sndpkt = Packet(p.seq_num, "1")
                     self.net_rcv.udt_send(sndpkt.get_byte_S())
+                    self.byte_buffer = self.byte_buffer[length:]
+                    print("RECEIVE: packet mismatch, resending ACK with seq num", p.seq_num)
+                    return None
 
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
