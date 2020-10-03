@@ -6,6 +6,11 @@ import hashlib
 from time import sleep
 
 
+def print_lock(statement):
+    with threading.Lock():
+        print(statement)
+
+
 class Packet:
     # the number of bytes used to store packet length
     seq_num_S_length = 10
@@ -61,8 +66,9 @@ class Packet:
 
 
 class RDT:
-    # latest sequence number used in a packet
-    seq_num = 1
+    # latest sequence number used in a packet for each thread (send and receive)
+    seq_num_snd = 1
+    seq_num_rcv = 1
     # buffer of bytes read from network
     byte_buffer = ''
     receive_thread = None
@@ -88,22 +94,15 @@ class RDT:
             self.receive_thread.join()
 
     def rdt_2_1_send(self, msg_S):
-        sleep(2)
-        print()
-        p = Packet(self.seq_num, msg_S)
+        p = Packet(self.seq_num_snd, msg_S)
 
         while True:
             self.net_snd.udt_send(p.get_byte_S())
-            #print("SEND: sending packet with seq num", self.seq_num)
-            #print("SEND: sending...", p.msg_S)
             ack_or_nak = self.net_snd.udt_receive()
 
             # wait for an ACK/NAK response
             while not ack_or_nak:
-                sleep(0.5)
-                #print("SEND: waiting for ACK/NAK")
                 ack_or_nak = self.net_snd.udt_receive()
-            #print("SEND: received ACK/NAK")
 
             # extract length of packet
             length = int(ack_or_nak[:Packet.length_S_length])
@@ -113,25 +112,26 @@ class RDT:
             corrupt = Packet.corrupt(ack_or_nak_bytes)
 
             if corrupt:
-                print("SENDER: ACK/NAK corrupt")
+                print_lock("SENDER: ACK/NAK corrupt... Re-sending packet")
                 continue
 
             if not corrupt:
                 response = Packet.from_byte_S(ack_or_nak_bytes)
 
-                if self.seq_num != response.seq_num:
+                if self.seq_num_snd != response.seq_num:
                     sndpkt = Packet(response.seq_num, "1")
                     self.net_snd.udt_send(sndpkt.get_byte_S())
-                    print("SENDER: Unexpected numbered packet, resending ACK for seq num", response.seq_num)
+                    print_lock("SENDER: Unexpected numbered packet... Resending ACK")
                     continue
 
                 if response.isACK():
-                    self.seq_num = (self.seq_num + 1) % 2
-                    print("SENDER: ACK received, updating sequence number", self.seq_num)
+                    self.seq_num_snd = (self.seq_num_snd + 1) % 2
+                    print_lock("SENDER: ACK received... Updating sequence number")
                     break
 
                 elif response.isNAK():
-                    print("SENDER: NAK received re-sending packet")
+                    pass
+                    print_lock("SENDER: NAK received... Re-sending packet")
 
     def receive_helper(self):
         while True:
@@ -150,25 +150,27 @@ class RDT:
             corrupt = Packet.corrupt(byte_S)
 
             if corrupt:
-                sndpkt = Packet(self.seq_num, "0")
+                sndpkt = Packet(self.seq_num_rcv, "0")
                 self.net_rcv.udt_send(sndpkt.get_byte_S())
-                print("RECEIVER: Packet corrupt, sending NAK")
+                print_lock("RECEIVER: Packet corrupt, sending NAK")
 
             elif not corrupt:
                 p = Packet.from_byte_S(byte_S[0:length])
 
-                if self.seq_num == p.seq_num:
+                if p.isACK() or p.isNAK():
+                    continue
+
+                if self.seq_num_rcv == p.seq_num:
                     self.byte_buffer += byte_S
                     sndpkt = Packet(p.seq_num, "1")
                     self.net_rcv.udt_send(sndpkt.get_byte_S())
-                    self.seq_num = (self.seq_num + 1) % 2
-                    print("RECEIVER: Packet received successfully, sending ACK and moving seq num to", self.seq_num)
-                    #print("RECEIVED:", p.msg_S)
+                    self.seq_num_rcv = (self.seq_num_rcv + 1) % 2
+                    print_lock("RECEIVER: Packet received successfully, sending ACK and updating seq num")
 
                 else:
                     sndpkt = Packet(p.seq_num, "1")
                     self.net_rcv.udt_send(sndpkt.get_byte_S())
-                    print("RECEIVER: Unexpected numbered packet, resending ACK for seq num", p.seq_num)
+                    print_lock("RECEIVER: Unexpected numbered packet, resending ACK")
 
     def rdt_2_1_receive(self):
         ret_S = None
