@@ -8,3 +8,4 @@ lib/python*
 desktop.ini
 .idea
 /venv/
+contributors.txt
