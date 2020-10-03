@@ -15,17 +15,17 @@ if __name__ == '__main__':
         'Grove giveth and Gates taketh away. -- Bob Metcalfe on the trend of hardware speedups not being able to keep up with software demands',
         'Wise men make proverbs, but fools repeat them. -- Samuel Palmer']
 
-    timeout = 2  # send the next message if no response
+    timeout = 20  # send the next message if no response
     time_of_last_data = time.time()
 
     rdt = RDT.RDT('client', args.server, args.port)
     for msg_S in msg_L:
-        print('Converting: ' + msg_S)
+        print('\nConverting: ' + msg_S + "\n")
         rdt.rdt_3_0_send(msg_S)
 
         # try to receive message before timeout
         msg_S = None
-        while msg_S == None:
+        while msg_S is None:
             msg_S = rdt.rdt_3_0_receive()
             if msg_S is None:
                 if time_of_last_data + timeout < time.time():
@@ -36,6 +36,6 @@ if __name__ == '__main__':
 
         # print the result
         if msg_S:
-            print('to: ' + msg_S + '\n')
+            print('\nto: ' + msg_S + '\n')
 
     rdt.disconnect()

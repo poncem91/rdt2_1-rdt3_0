@@ -1,11 +1,11 @@
 import threading
-
 import Network
 import argparse
 import hashlib
 from time import sleep
 
 
+# keeps print statements from overlapping
 def print_lock(statement):
     with threading.Lock():
         print(statement)
@@ -94,6 +94,7 @@ class RDT:
             self.receive_thread.join()
 
     def rdt_2_1_send(self, msg_S):
+        sleep(0.2)
         p = Packet(self.seq_num_snd, msg_S)
 
         while True:
@@ -111,6 +112,7 @@ class RDT:
             ack_or_nak_bytes = ack_or_nak[0:length]
             corrupt = Packet.corrupt(ack_or_nak_bytes)
 
+            # If ACK/NAK is corrupt it loops back and re-send packet
             if corrupt:
                 print_lock("SENDER: ACK/NAK corrupt... Re-sending packet")
                 continue
@@ -118,22 +120,23 @@ class RDT:
             if not corrupt:
                 response = Packet.from_byte_S(ack_or_nak_bytes)
 
+                # If ACK/NAK is for wrong packet, it loops back and re-sends packet
                 if self.seq_num_snd != response.seq_num:
-                    sndpkt = Packet(response.seq_num, "1")
-                    self.net_snd.udt_send(sndpkt.get_byte_S())
-                    print_lock("SENDER: Unexpected numbered packet... Resending ACK")
+                    print_lock("SENDER: Unexpected numbered packet... Re-sending packet")
                     continue
 
+                # If it was ACK it moves on seq num and send it done
                 if response.isACK():
                     self.seq_num_snd = (self.seq_num_snd + 1) % 2
                     print_lock("SENDER: ACK received... Updating sequence number")
                     break
 
+                # If it was NAK it loops back and re-sends packet
                 elif response.isNAK():
-                    pass
                     print_lock("SENDER: NAK received... Re-sending packet")
 
     def receive_helper(self):
+
         while True:
             byte_S = self.net_rcv.udt_receive()
 
@@ -149,6 +152,7 @@ class RDT:
 
             corrupt = Packet.corrupt(byte_S)
 
+            # If packet is corrupt it sends a NAK
             if corrupt:
                 sndpkt = Packet(self.seq_num_rcv, "0")
                 self.net_rcv.udt_send(sndpkt.get_byte_S())
@@ -157,9 +161,7 @@ class RDT:
             elif not corrupt:
                 p = Packet.from_byte_S(byte_S[0:length])
 
-                if p.isACK() or p.isNAK():
-                    continue
-
+                # If packet is correct packet, it sends back ACK and updates seq num
                 if self.seq_num_rcv == p.seq_num:
                     self.byte_buffer += byte_S
                     sndpkt = Packet(p.seq_num, "1")
@@ -167,12 +169,14 @@ class RDT:
                     self.seq_num_rcv = (self.seq_num_rcv + 1) % 2
                     print_lock("RECEIVER: Packet received successfully, sending ACK and updating seq num")
 
+                # If packet is not the expected numbered packet, it re-sends ACK for previous packet
                 else:
                     sndpkt = Packet(p.seq_num, "1")
                     self.net_rcv.udt_send(sndpkt.get_byte_S())
                     print_lock("RECEIVER: Unexpected numbered packet, resending ACK")
 
     def rdt_2_1_receive(self):
+        sleep(0.2)
         ret_S = None
         if self.byte_buffer:
             length = int(self.byte_buffer[:Packet.length_S_length])
