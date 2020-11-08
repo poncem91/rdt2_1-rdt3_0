@@ -26,5 +26,5 @@ python client.py localhost 5000
 
 Starting the servers first, to allow it to start listening on a socket used by `network.py`, and start the client soon after, before the server times out.
 
-### Co-Authors
+### Acknowledgment
 Starter code with RDT 1.0 implementation provided by Prof. Mike Wittie from Montana State University.
